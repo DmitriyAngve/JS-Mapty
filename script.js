@@ -7,6 +7,7 @@
 class Workout {
   date = new Date();
   id = (Date.now() + '').slice(-10);
+  clicks = 0;
 
   constructor(coords, distance, duration) {
     this.coords = coords;
@@ -21,6 +22,10 @@ class Workout {
     this.description = `${this.type[0].toUpperCase()}${this.type.slice(1)} on ${
       months[this.date.getMonth()]
     } ${this.date.getDate()}`; // if "this.date.getMonth()" returns 0, them "month" return "January"...
+  }
+
+  click() {
+    this.clicks++;
   }
 }
 
@@ -76,7 +81,13 @@ class App {
   #workouts = [];
 
   constructor() {
+    // Get user's position
     this._getPosition(); // this constructor method is called immediately when a new object is created from this class (in my case object "app" - when the page loads down). Current position should be determined in method "_getPosition()" and then the "_loadMap" metho should be called with that current "position"
+
+    // Get data from local storage
+    this._getLocaleStorage();
+
+    // Attach event handlers
     form.addEventListener('submit', this._newWorkout.bind(this));
     inputType.addEventListener('change', this._toggleElevationField);
     containerWorkouts.addEventListener('click', this._moveToPopup.bind(this));
@@ -99,9 +110,7 @@ class App {
 
     const coords = [latitude, longitude];
 
-    console.log(this);
     this.#map = L.map('map').setView(coords, this.#mapZoomLevel); // this.#map - no longer a normal variable
-    //   console.log(map);
 
     L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
       attribution:
@@ -110,6 +119,11 @@ class App {
 
     // Handling clicks on map
     this.#map.on('click', this._showForm.bind(this));
+
+    // Let's take all data and render them in to list
+    this.#workouts.forEach(work => {
+      this._renderWorkoutMarker(work);
+    });
   }
 
   _showForm(mapE) {
@@ -182,7 +196,6 @@ class App {
 
     // Add new object to workout
     this.#workouts.push(workout);
-    console.log(workout);
 
     // Render workout on map as marker
     this._renderWorkoutMarker(workout);
@@ -193,6 +206,9 @@ class App {
 
     // Clear input fields
     this._hideForm();
+
+    // Set locale storage to all workouts
+    this._setLocalStorage();
   }
 
   _renderWorkoutMarker(workout) {
@@ -281,7 +297,32 @@ class App {
         duration: 1,
       },
     });
+
+    // using the public interface
+    // workout.click();
+  }
+
+  _setLocalStorage() {
+    // localStorage is an API that the browser provides. First argument - name, second - string that we want to store and which will be associated with this key
+    localStorage.setItem('workouts', JSON.stringify(this.#workouts));
+  }
+
+  _getLocaleStorage() {
+    const data = JSON.parse(localStorage.getItem('workouts'));
+
+    if (!data) return;
+
+    this.#workouts = data;
+
+    this.#workouts.forEach(work => {
+      this._renderWorkout(work);
+    });
+  }
+
+  // Clear locale storage (based on the key ("workout"))
+  reset() {
+    localStorage.removeItem('workouts');
+    location.reload();
   }
 }
-
 const app = new App(); // Dont need any parameteres, because class App no any inputs
