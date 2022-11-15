@@ -1,8 +1,5 @@
 'use strict';
 
-// prettier-ignore
-const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
 // How to use Geolocation API (first function - success, second function - in case of error)
 
 // let map, mapEvent;
@@ -16,13 +13,24 @@ class Workout {
     this.distance = distance;
     this.duration = duration;
   }
+
+  _setDescription() {
+    // prettier-ignore
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    this.description = `${this.type[0].toUpperCase()}${this.type.slice(1)} on ${
+      months[this.date.getMonth()]
+    } ${this.date.getDate()}`; // if "this.date.getMonth()" returns 0, them "month" return "January"...
+  }
 }
 
 class Running extends Workout {
+  type = 'running';
   constructor(coords, distance, duration, cadence) {
     super(coords, distance, duration);
     this.cadence = cadence;
     this.caclPace();
+    this._setDescription(); // I will write it down here so that when a new object is created, the function is immediately executed
   }
 
   caclPace() {
@@ -32,10 +40,13 @@ class Running extends Workout {
   }
 }
 class Cycling extends Workout {
+  type = 'cycling';
   constructor(coords, distance, duration, elevationGain) {
     super(coords, distance, duration);
     this.elevationGain = elevationGain;
+    // this.type = 'cycling';
     this.caclSpeed();
+    this._setDescription(); // I will write it down here so that when a new object is created, the function is immediately executed
   }
 
   caclSpeed() {
@@ -45,9 +56,9 @@ class Cycling extends Workout {
   }
 }
 
-const run1 = new Running([39, -12], 5.2, 24, 178);
-const cycling1 = new Cycling([38, -12], 27, 95, 523);
-console.log(run1, cycling1);
+// const run1 = new Running([39, -12], 5.2, 24, 178);
+// const cycling1 = new Cycling([38, -12], 27, 95, 523);
+// console.log(run1, cycling1);
 
 ///////////////////APPLICATION ARCHITECTURE//////////////////////////////
 const form = document.querySelector('.form');
@@ -61,11 +72,14 @@ const inputElevation = document.querySelector('.form__input--elevation');
 class App {
   #map;
   #mapEvent;
+  #mapZoomLevel = 13;
+  #workouts = [];
 
   constructor() {
     this._getPosition(); // this constructor method is called immediately when a new object is created from this class (in my case object "app" - when the page loads down). Current position should be determined in method "_getPosition()" and then the "_loadMap" metho should be called with that current "position"
     form.addEventListener('submit', this._newWorkout.bind(this));
     inputType.addEventListener('change', this._toggleElevationField);
+    containerWorkouts.addEventListener('click', this._moveToPopup.bind(this));
   }
 
   _getPosition() {
@@ -86,7 +100,7 @@ class App {
     const coords = [latitude, longitude];
 
     console.log(this);
-    this.#map = L.map('map').setView(coords, 13); // this.#map - no lomger a normal variable
+    this.#map = L.map('map').setView(coords, this.#mapZoomLevel); // this.#map - no longer a normal variable
     //   console.log(map);
 
     L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
@@ -102,6 +116,20 @@ class App {
     this.#mapEvent = mapE;
     form.classList.remove('hidden');
     inputDistance.focus();
+  }
+
+  _hideForm() {
+    // Empty inputs
+    inputDistance.value =
+      inputDuration.value =
+      inputCadence.value =
+      inputElevation.value =
+        '';
+
+    // Hide form immediately
+    form.style.display = 'none';
+    form.classList.add('hidden');
+    setTimeout(() => (form.style.display = 'grid'), 1000);
   }
 
   _toggleElevationField() {
@@ -120,10 +148,13 @@ class App {
     const type = inputType.value;
     const distance = +inputDistance.value; // converted to a Number
     const duration = +inputDuration.value;
+    const { lat, lng } = this.#mapEvent.latlng;
+    let workout;
 
     // If workout running, create running object
     if (type === 'running') {
       const cadence = +inputCadence.value;
+
       // Check if data is valid
       if (
         // !Number.isFinite(distance) ||
@@ -133,6 +164,8 @@ class App {
         !allPositive(distance, duration, cadence)
       )
         return alert('Inputs have to be positive numbers!');
+
+      workout = new Running([lat, lng], distance, duration, cadence);
     }
 
     // If workout cycling, create cycling object
@@ -144,13 +177,26 @@ class App {
         !allPositive(distance, duration)
       )
         return alert('Inputs have to be positive numbers!');
+      workout = new Cycling([lat, lng], distance, duration, elevation);
     }
 
     // Add new object to workout
+    this.#workouts.push(workout);
+    console.log(workout);
 
     // Render workout on map as marker
-    const { lat, lng } = this.#mapEvent.latlng;
-    L.marker([lat, lng])
+    this._renderWorkoutMarker(workout);
+    // Render workout on list
+    this._renderWorkout(workout);
+
+    // Hide form + clear input fields
+
+    // Clear input fields
+    this._hideForm();
+  }
+
+  _renderWorkoutMarker(workout) {
+    L.marker(workout.coords)
       .addTo(this.#map)
       .bindPopup(
         L.popup({
@@ -158,22 +204,83 @@ class App {
           minWidth: 100,
           autoClose: false,
           closeOnClick: false,
-          className: 'running-popup',
+          className: `${workout.type}-popup`,
         })
       )
-      .setPopupContent('Workout')
+      .setPopupContent(
+        `${workout.type === 'running' ? '🏃‍♂️' : '🚴‍♀️'} ${workout.description}`
+      )
       .openPopup();
+  }
 
-    // Render workout on list
+  _renderWorkout(workout) {
+    let html = `
+    <li class="workout workout--${workout.type}" data-id="${workout.id}">
+      <h2 class="workout__title">${workout.description}</h2>
+      <div class="workout__details">
+        <span class="workout__icon">${
+          workout.type === 'running' ? '🏃‍♂️' : '🚴‍♀️'
+        }</span>
+        <span class="workout__value">${workout.distance}</span>
+        <span class="workout__unit">km</span>
+      </div>
+      <div class="workout__details">
+        <span class="workout__icon">⏱</span>
+        <span class="workout__value">${workout.duration}</span>
+        <span class="workout__unit">min</span>
+      </div>
+  `;
 
-    // Hide form + clear input fields
+    if (workout.type === 'running')
+      html += `
+      <div class="workout__details">
+        <span class="workout__icon">⚡️</span>
+        <span class="workout__value">${workout.pace.toFixed(1)}</span>
+        <span class="workout__unit">min/km</span>
+      </div>
+      <div class="workout__details">
+        <span class="workout__icon">🦶🏼</span>
+        <span class="workout__value">${workout.cadence}</span>
+        <span class="workout__unit">spm</span>
+      </div>
+    </li>
+    `;
 
-    // Clear input fields
-    inputDistance.value =
-      inputDuration.value =
-      inputCadence.value =
-      inputElevation.value =
-        '';
+    if (workout.type === 'cycling')
+      html += `
+      <div class="workout__details">
+        <span class="workout__icon">⚡️</span>
+        <span class="workout__value">${workout.speed.toFixed(1)}</span>
+        <span class="workout__unit">km/h</span>
+      </div>
+      <div class="workout__details">
+        <span class="workout__icon">🗻</span>
+        <span class="workout__value">${workout.elevationGain}</span>
+        <span class="workout__unit">m</span>
+      </div>
+    </li>
+    `;
+
+    form.insertAdjacentHTML('afterend', html); // add new element as a sibling at the end of the form
+  }
+
+  // Need the event, because we will have to match the object
+  _moveToPopup(e) {
+    const workoutEl = e.target.closest('.workout');
+
+    if (!workoutEl) return;
+    // Get to workout data out of workouts array
+    const workout = this.#workouts.find(
+      work => work.id === workoutEl.dataset.id
+    );
+
+    // The leaflet has a method that takes the coordinates
+    this.#map.setView(workout.coords, this.#mapZoomLevel, {
+      animate: true,
+      pan: {
+        duration: 1,
+      },
+    });
   }
 }
 
