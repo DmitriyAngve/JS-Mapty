@@ -28,7 +28,6 @@ class Workout {
     this.clicks++;
   }
 }
-
 class Running extends Workout {
   type = 'running';
   constructor(coords, distance, duration, cadence) {
