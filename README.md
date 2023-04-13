@@ -1,6 +1,6 @@
 # Mapty
 
-In this project I use Leaflet API, OOP concepts and Geolocation.
+In this project I use Leaflet library, OOP concepts and Geolocation.
 All added workout stored in local Storage
 
 
