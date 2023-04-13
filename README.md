@@ -10,4 +10,6 @@ The app uses the Geolocation API and Leaflet library to display a map where user
 - The app displays a list of all workouts, with details such as date, time, distance, and type of workout
 - Users can also click on a workout to view it on the map and see additional details
 
+<h3 align="center">https://mapty-angve.netlify.app</h3>
+
 <h3 align="center">Thanks for reading this entire post.</h3>
