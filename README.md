@@ -1,8 +1,6 @@
 # Mapty
 
-In this project I use Leaflet library, OOP concepts and Geolocation.
-All added workout stored in local Storage
-
+In this project I use Leaflet library, OOP concepts and Geolocation API and local Storage.
 
 <h3 align="center">About App:</h3>
 <div>- The user can add two types of workouts: running and cycling by clicking on the map</div>
